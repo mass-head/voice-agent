@@ -5,7 +5,7 @@ python-multipart
 # Google GenAI SDK (v1beta)
 google-genai
 # Computer Vision & Audio
-opencv-python
+opencv-python-headless
 pyaudio
 pillow
 mss

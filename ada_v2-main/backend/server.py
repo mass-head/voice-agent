@@ -529,7 +529,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "server:app_socketio", 
         host=os.getenv("ZORO_HOST", "0.0.0.0"), 
-        port=int(os.getenv("ZORO_PORT", "8000")), 
+        port=int(os.getenv("PORT", os.getenv("ZORO_PORT", "8000"))), 
         reload=False,
         loop="asyncio",
         reload_excludes=["temp_cad_gen.py", "output.stl", "*.stl"],

@@ -6,8 +6,12 @@ import sys
 import traceback
 from dotenv import load_dotenv
 import cv2
-import pyaudio
+try:
+    import pyaudio
+except Exception:
+    pyaudio = None
 import PIL.Image
+
 import mss
 import argparse
 import math
@@ -40,7 +44,14 @@ MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 DEFAULT_MODE = "camera"
 
 load_dotenv()
-client = genai.Client(http_options={"api_version": "v1beta"}, api_key=os.getenv("GEMINI_API_KEY"))
+
+def get_genai_client():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY environment variable is not set. Please configure it in your Render environment variables.")
+    return genai.Client(http_options={"api_version": "v1beta"}, api_key=api_key)
+
+client = None
 
 # Function definitions
 run_web_agent = {
@@ -112,7 +123,13 @@ config = types.LiveConnectConfig(
     )
 )
 
-pya = pyaudio.PyAudio()
+pya = None
+if pyaudio is not None:
+    try:
+        pya = pyaudio.PyAudio()
+    except Exception as e:
+        print(f"[ZORO] [WARN] PyAudio initialization failed: {e}")
+        pya = None
 
 from web_agent import WebAgent
 
@@ -242,7 +259,21 @@ class AudioLoop:
             await self.session.send(input=msg, end_of_turn=False)
 
     async def listen_audio(self):
-        mic_info = pya.get_default_input_device_info()
+        if pya is None:
+            print("[ZORO] [WARN] PyAudio not available on host. Microphone input disabled.")
+            while not self.stop_event.is_set():
+                await asyncio.sleep(1)
+            return
+
+        mic_info = None
+        try:
+            mic_info = pya.get_default_input_device_info()
+        except Exception as e:
+            print(f"[ZORO] [WARN] No host microphone device available: {e}")
+            while not self.stop_event.is_set():
+                await asyncio.sleep(1)
+            return
+
 
         # Resolve Input Device by Name if provided
         resolved_input_device_index = None
@@ -294,9 +325,11 @@ class AudioLoop:
                 input_device_index=resolved_input_device_index if resolved_input_device_index is not None else mic_info["index"],
                 frames_per_buffer=CHUNK_SIZE,
             )
-        except OSError as e:
+        except Exception as e:
             print(f"[ZORO] [ERR] Failed to open audio input stream: {e}")
-            print("[ZORO] [WARN] Audio features will be disabled. Please check microphone permissions.")
+            print("[ZORO] [WARN] Audio features will be disabled.")
+            while not self.stop_event.is_set():
+                await asyncio.sleep(1)
             return
 
         if __debug__:
@@ -720,19 +753,30 @@ class AudioLoop:
             raise e
 
     async def play_audio(self):
-        stream = await asyncio.to_thread(
-            pya.open,
-            format=FORMAT,
-            channels=CHANNELS,
-            rate=RECEIVE_SAMPLE_RATE,
-            output=True,
-            output_device_index=self.output_device_index,
-        )
+        stream = None
+        if pya is not None:
+            try:
+                stream = await asyncio.to_thread(
+                    pya.open,
+                    format=FORMAT,
+                    channels=CHANNELS,
+                    rate=RECEIVE_SAMPLE_RATE,
+                    output=True,
+                    output_device_index=self.output_device_index,
+                )
+            except Exception as e:
+                print(f"[ZORO] [WARN] Host audio output device not available: {e}")
+
         while True:
             bytestream = await self.audio_in_queue.get()
             if self.on_audio_data:
                 self.on_audio_data(bytestream)
-            await asyncio.to_thread(stream.write, bytestream)
+            if stream is not None:
+                try:
+                    await asyncio.to_thread(stream.write, bytestream)
+                except Exception:
+                    pass
+
 
     async def get_frames(self):
         cap = await asyncio.to_thread(cv2.VideoCapture, 0, cv2.CAP_AVFOUNDATION)
@@ -773,6 +817,7 @@ class AudioLoop:
         while not self.stop_event.is_set():
             try:
                 print(f"[ZORO] [CONNECT] Connecting to Gemini Live API...")
+                client = get_genai_client()
                 async with (
                     client.aio.live.connect(model=MODEL, config=config) as session,
                     asyncio.TaskGroup() as tg,

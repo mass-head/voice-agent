@@ -14,11 +14,10 @@ import SettingsWindow from './components/SettingsWindow';
 
 
 
-const BACKEND_URL = (window.location.port === '8000' || window.location.port === '8002')
-    ? window.location.origin
-    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:8000'
-        : `http://${window.location.hostname}:8000`);
+const BACKEND_URL = ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '8000' && window.location.port !== '8002')
+    ? 'http://localhost:8000'
+    : window.location.origin;
+
 
 const socket = io(BACKEND_URL, {
     reconnection: true,
