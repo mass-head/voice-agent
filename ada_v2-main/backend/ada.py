@@ -28,7 +28,7 @@ if sys.version_info < (3, 11, 0):
 
 from tools import tools_list
 
-FORMAT = pyaudio.paInt16
+FORMAT = getattr(pyaudio, 'paInt16', 8) if pyaudio is not None else 8
 CHANNELS = 1
 SEND_SAMPLE_RATE = 16000
 RECEIVE_SAMPLE_RATE = 24000
@@ -907,26 +907,36 @@ class AudioLoop:
                         pass
 
 def get_input_devices():
-    p = pyaudio.PyAudio()
-    info = p.get_host_api_info_by_index(0)
-    numdevices = info.get('deviceCount')
-    devices = []
-    for i in range(0, numdevices):
-        if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-            devices.append((i, p.get_device_info_by_host_api_device_index(0, i).get('name')))
-    p.terminate()
-    return devices
+    if pyaudio is None:
+        return []
+    try:
+        p = pyaudio.PyAudio()
+        info = p.get_host_api_info_by_index(0)
+        numdevices = info.get('deviceCount', 0)
+        devices = []
+        for i in range(0, numdevices):
+            if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
+                devices.append((i, p.get_device_info_by_host_api_device_index(0, i).get('name')))
+        p.terminate()
+        return devices
+    except Exception:
+        return []
 
 def get_output_devices():
-    p = pyaudio.PyAudio()
-    info = p.get_host_api_info_by_index(0)
-    numdevices = info.get('deviceCount')
-    devices = []
-    for i in range(0, numdevices):
-        if (p.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels')) > 0:
-            devices.append((i, p.get_device_info_by_host_api_device_index(0, i).get('name')))
-    p.terminate()
-    return devices
+    if pyaudio is None:
+        return []
+    try:
+        p = pyaudio.PyAudio()
+        info = p.get_host_api_info_by_index(0)
+        numdevices = info.get('deviceCount', 0)
+        devices = []
+        for i in range(0, numdevices):
+            if (p.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels')) > 0:
+                devices.append((i, p.get_device_info_by_host_api_device_index(0, i).get('name')))
+        p.terminate()
+        return devices
+    except Exception:
+        return []
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
