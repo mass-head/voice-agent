@@ -1,0 +1,15 @@
+{
+    "face_auth_enabled": false,
+    "tool_permissions": {
+        "run_web_agent": true,
+        "write_file": false,
+        "read_directory": false,
+        "read_file": false,
+        "create_project": false,
+        "switch_project": false,
+        "list_projects": false,
+        "create_directory": false
+    },
+    "kasa_devices": [],
+    "camera_flipped": false
+}
