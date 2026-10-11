@@ -6,7 +6,7 @@ python-multipart
 google-genai
 # Computer Vision & Audio
 opencv-python-headless
-pyaudio
+pyaudio; sys_platform == 'win32'
 pillow
 mss
 # Browser Automation
