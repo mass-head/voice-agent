@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies
 COPY ada_v2-main/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir pyaudio
+RUN pip install --no-cache-dir -r requirements.txt && (pip install --no-cache-dir pyaudio || true)
 
 # Copy backend and built frontend assets
 COPY ada_v2-main/ ./ada_v2-main/
